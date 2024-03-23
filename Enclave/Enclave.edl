@@ -1,10 +1,20 @@
 enclave {
     trusted {
         public int trusted_func01(void);
+        public sgx_status_t generate_new_secret(
+            size_t threshold, 
+            size_t share_count,
+            size_t secret_length,
+            [out, size=sealed_secret_size] char* sealed_secret, size_t sealed_secret_size
+        );
     };
 
     untrusted {
         void ocall_wait_keyinput([in, string] const char *str);
+        void ocall_print_string([in, string] const char *str);
+        void ocall_print_int([in, string] const char *str, [in] const int *number);
+        void ocall_print_hex([in] const unsigned char** key, [in] const int *keylen);
+        void ocall_print_bip39([in] const unsigned char** secret, [in] const int *secret_len);
     };
 
 };
