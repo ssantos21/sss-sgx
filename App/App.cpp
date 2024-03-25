@@ -174,6 +174,29 @@ void generateNewSeed(
         return;
     }
 
+    // std::vector<std::vector<char>> arrays;
+    for (size_t i = 0; i < shareCount; ++i) {
+        // std::vector<char> share(sealedSecretSize);
+        // memcpy(share.data(), sealedShares + i * sealedSecretSize, sealedSecretSize);
+        // arrays.push_back(share);
+
+        char sealed_key_share[sealedSecretSize];
+        memcpy(sealed_key_share, sealedShares + i * sealedSecretSize, sealedSecretSize);
+        // std::cout << "Share " << i << ": " << key_to_string((const unsigned char*) share, sealedSecretSize) << std::endl;
+
+        res = db_manager::add_sealed_key_share(seedName, sealed_key_share, sealedSecretSize, error_message);
+
+        if (!res) {
+            std::cout << "Database error: " << error_message << std::endl;
+            return;
+        }
+    }
+
+    // print each element of arrays vector
+    /* for (size_t i = 0; i < arrays.size(); ++i) {
+        std::cout << "Share " << i << ": " << key_to_string((const unsigned char*) arrays[i].data(), sealedSecretSize) << std::endl;
+    }
+    */
     std::cout << "OK " << std::endl;
     std::cout << "Database created: " << res << std::endl;
     
