@@ -30,7 +30,8 @@ sgx_status_t generate_new_secret(
     size_t threshold, 
     size_t share_count, 
     size_t secret_length,
-    char *sealed_secret, size_t sealed_secret_size) {
+    char *sealed_secret, size_t sealed_secret_size,
+    char* sealed_shares, size_t sealed_total_share_size) {
     
     // Step 1: Open Context.
     sgx_status_t ret = SGX_ERROR_UNEXPECTED;
@@ -86,10 +87,49 @@ sgx_status_t generate_new_secret(
         char* res_i_data = data_to_hex(result_data + offset, secret_len);
         ocall_print_string(res_i_data);
 
-        const unsigned char* r_data = result_data + offset;
-        size_t len_p2 = secret_len;
-        ocall_print_bip39(&r_data, (int *) &len_p2);
+        const unsigned char* share_data = result_data + offset;
+        size_t share_len = secret_len;
+        ocall_print_bip39(&share_data, (int *) &share_len);
+
+        const size_t sealed_share_size = sealed_secret_size;
+
+        char sealed_share[sealed_share_size];
+        memset(sealed_share, 0, sealed_share_size);
+
+        if (sealed_share_size >= sgx_calc_sealed_data_size(0U, share_len))
+        {
+            if ((ret = sgx_seal_data(0U, NULL, share_len, share_data, (uint32_t) sealed_share_size, (sgx_sealed_data_t *)sealed_share)) != SGX_SUCCESS)
+            {
+                ocall_print_string("\nTrustedApp: sgx_seal_data() failed !\n");
+            }
+        }
+        else
+        {
+            ocall_print_string("\nTrustedApp: Size allocated for sealedprivkey by untrusted app is less than the required size !\n");
+            ret = SGX_ERROR_INVALID_PARAMETER;
+        }
+
+        /* char* sealed_share_i_data = data_to_hex((uint8_t*) sealed_share, sealed_share_size);
+        ocall_print_string("Saled Share i data");
+        ocall_print_string(sealed_share_i_data); */
+
+        size_t share_offset = i * sealed_share_size;
+
+        // Ensure we don't write past the end of sealed_shares
+        if ((share_offset + sealed_share_size) > sealed_total_share_size) {
+            // Handle error: share would exceed total share size
+            ocall_print_string("\n(share_offset + sealed_share_size) would exceed sealed_total_share_size !\n");
+            return SGX_ERROR_UNEXPECTED; // Example error code, adjust according to your error handling
+        }
+
+        // add sealed_share to sealed_shares at share_offset
+        memcpy(sealed_shares + share_offset, sealed_share, sealed_share_size);
+
     }
+
+    /* char* sealed_shares_data = data_to_hex((uint8_t*) sealed_shares, sealed_total_share_size);
+    ocall_print_string("sealed_shares_data");
+    ocall_print_string(sealed_shares_data); */
 
     // Mnemonics
     // size_t max_mnemonics_len = 300;

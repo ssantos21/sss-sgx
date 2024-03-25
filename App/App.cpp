@@ -13,6 +13,7 @@
 
 #include "libs/CLI11.hpp"
 #include "libs/toml.hpp"
+#include "database/db_manager.h"
 
 #include <mutex>
 #include <iostream>
@@ -20,6 +21,8 @@
 
 #include <bc-bip39/bc-bip39.h>
 #include <bc-shamir/bc-shamir.h>
+
+#include <pqxx/pqxx>
 
 
 // extracted from sdk/tseal/tSeal_util.cpp
@@ -116,6 +119,7 @@ int SGX_CDECL main(int argc, char *argv[])
 void generateNewSeed(
     sgx_enclave_id_t &enclave_id,
     std::mutex &mutex_enclave_id,
+    std::string& seedName,
     size_t threshold,
     size_t shareCount
     ) {
@@ -129,13 +133,17 @@ void generateNewSeed(
 
     memset(sealedSecret, 0, sealedSecretSize);
 
-    char sealedShares[sealedSecretSize * shareCount];
+    const size_t sealedTotalShareSize = sealedSecretSize * shareCount;
+    char sealedShares[sealedTotalShareSize];
+
+    std::cout << "sealedTotalShareSize: " << sealedTotalShareSize << std::endl;
 
     sgx_status_t ecall_ret;
     sgx_status_t status = generate_new_secret(
         enclave_id, &ecall_ret, 
         threshold, shareCount, secretLen,
-        sealedSecret, sealedSecretSize);
+        sealedSecret, sealedSecretSize,
+        sealedShares, sealedTotalShareSize);
 
     if (ecall_ret != SGX_SUCCESS) {
         std::cout << "Key aggregation Ecall failed " << std::endl;
@@ -151,7 +159,23 @@ void generateNewSeed(
 
     // std::cout << "sealedSecret: " << sealedSecretHex << std::endl;
 
+    std::string error_message;
+    bool res = db_manager::create_new_sheme(seedName, threshold, shareCount, secretLen, error_message);
+
+    if (!res) {
+        std::cout << "Database error: " << error_message << std::endl;
+        return;
+    }
+
+    res = db_manager::add_sealed_secret(seedName, sealedSecret, sealedSecretSize, error_message);
+
+    if (!res) {
+        std::cout << "Database error: " << error_message << std::endl;
+        return;
+    }
+
     std::cout << "OK " << std::endl;
+    std::cout << "Database created: " << res << std::endl;
     
 }
 
@@ -371,6 +395,8 @@ int SGX_CDECL main(int argc, char *argv[])
     auto config = toml::parse_file("Settings.toml");
     auto database_connection_string = config["sss_sgx"]["database_connection_string"].as_string()->get();
 
+    // pqxx::connection conn(database_connection_string);
+
     std::cout << "Database connection string: " << database_connection_string << std::endl;
 
     sgx_enclave_id_t enclave_id = 0;
@@ -410,7 +436,7 @@ int SGX_CDECL main(int argc, char *argv[])
         addKeyFunction(newKey);
     } else if(*generateSeedCmd) {
         std::cout << "Seed name: " << seedName << std::endl;
-        generateNewSeed(enclave_id, mutex_enclave_id, threshold, shareCount);
+        generateNewSeed(enclave_id, mutex_enclave_id, seedName, threshold, shareCount);
     } else {
         std::cout << "No valid command was called.\n";
     }

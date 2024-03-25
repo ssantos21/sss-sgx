@@ -56,7 +56,7 @@ else
 	Urts_Library_Name := sgx_urts
 endif
 
-App_Cpp_Files := App/App.cpp
+App_Cpp_Files := App/App.cpp App/database/db_manager.cpp
 App_Include_Paths := -IApp -I$(SGX_SDK)/include
 
 App_C_Flags := -fPIC -Wno-attributes $(App_Include_Paths)
@@ -74,7 +74,7 @@ else
 endif
 
 App_Cpp_Flags := $(App_C_Flags)
-App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lbc-bip39 -lbc-shamir -lbc-crypto-base
+App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lbc-bip39 -lbc-shamir -lbc-crypto-base -lpqxx -lpq
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 
