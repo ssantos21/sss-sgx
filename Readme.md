@@ -64,7 +64,7 @@ Now you can build and run this application.
 git clone https://github.com/ssantos21/intel-sgx-enclave-base
 cd intel-sgx-enclave-base
 # build application
-make
+make SGX_MODE=SIM
 # run application
 ./app
 ```

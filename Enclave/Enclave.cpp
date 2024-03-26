@@ -187,6 +187,43 @@ sgx_status_t seal_key_share(
   return ret;
 }
 
+sgx_status_t recover_seed(
+  char* sealed_shares, size_t sealed_total_share_size,
+  size_t sealed_share_data_size, size_t num_key_sealed_shares,
+  char* sealed_secret, size_t sealed_secret_size) {
+
+  sgx_status_t ret = SGX_SUCCESS;
+
+  for (size_t i = 0; i < num_key_sealed_shares; ++i) {
+    char sealed_key_share[sealed_share_data_size];
+
+    memcpy(sealed_key_share, sealed_shares + i * sealed_share_data_size, sealed_share_data_size);
+
+    // char* res_i_data = data_to_hex( (uint8_t*) sealed_key_share, sealed_share_data_size);
+    // ocall_print_int("share", (const int *) &i);
+    // ocall_print_string(res_i_data);
+
+    
+
+    uint32_t unsealed_data_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)sealed_key_share);
+    uint8_t key_share[unsealed_data_size];
+
+    if ((ret = sgx_unseal_data((sgx_sealed_data_t *)sealed_key_share, NULL, NULL, key_share, &unsealed_data_size)) != SGX_SUCCESS)
+    {
+        ocall_print_string("\nTrustedApp: sgx_unseal_data() failed !\n");
+        return SGX_ERROR_UNEXPECTED;
+    }
+
+    char* res_i_data = data_to_hex( (uint8_t*) key_share, unsealed_data_size);
+    ocall_print_int("key_share", (const int *) &i);
+    ocall_print_string(res_i_data);
+
+  }
+
+  return ret;
+
+}
+
 /* sgx_status_t recover_secret(
     char *sealed_secret, size_t sealed_secret_size,
     char* sealed_shares, size_t sealed_total_share_size) {
