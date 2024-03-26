@@ -164,6 +164,37 @@ sgx_status_t generate_new_secret(
     return SGX_SUCCESS;
 }
 
+sgx_status_t seal_key_share(
+  unsigned char* key_share, size_t key_share_size,
+  char* sealed_key_share, size_t sealed_key_share_size) {
+
+  sgx_status_t ret = SGX_SUCCESS;
+
+  if (sealed_key_share_size >= sgx_calc_sealed_data_size(0U, key_share_size))
+  {
+    if ((ret = sgx_seal_data(0U, NULL, key_share_size, key_share, (uint32_t) sealed_key_share_size, (sgx_sealed_data_t *)sealed_key_share)) != SGX_SUCCESS)
+    {
+      ocall_print_string("\nTrustedApp: sgx_seal_data() failed !\n");
+      ret =  SGX_ERROR_UNEXPECTED;
+    }
+  }
+  else
+  {
+    ocall_print_string("\nTrustedApp: Size allocated for sealed_key_share_size by untrusted app is less than the required size !\n");
+    ret =  SGX_ERROR_INVALID_PARAMETER;
+  }
+
+  return ret;
+}
+
+/* sgx_status_t recover_secret(
+    char *sealed_secret, size_t sealed_secret_size,
+    char* sealed_shares, size_t sealed_total_share_size) {
+
+
+
+} */
+
 // ---test
 
 char* data_to_hex(uint8_t* in, size_t insz)

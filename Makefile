@@ -56,7 +56,7 @@ else
 	Urts_Library_Name := sgx_urts
 endif
 
-App_Cpp_Files := App/App.cpp App/database/db_manager.cpp
+App_Cpp_Files := App/App.cpp App/database/db_manager.cpp App/utils/utils.cpp
 App_Include_Paths := -IApp -I$(SGX_SDK)/include
 
 App_C_Flags := -fPIC -Wno-attributes $(App_Include_Paths)

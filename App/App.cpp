@@ -7,13 +7,13 @@
 # define ENCLAVE_FILENAME "enclave.signed.so"
 
 #include "sgx_urts.h"
-#include "sgx_tseal.h"
 #include "App.h"
 #include "Enclave_u.h"
 
 #include "libs/CLI11.hpp"
 #include "libs/toml.hpp"
 #include "database/db_manager.h"
+#include "utils/utils.h"
 
 #include <mutex>
 #include <iostream>
@@ -26,7 +26,7 @@
 
 
 // extracted from sdk/tseal/tSeal_util.cpp
-uint32_t sgx_calc_sealed_data_size(const uint32_t add_mac_txt_size, const uint32_t txt_encrypt_size) 
+/* uint32_t sgx_calc_sealed_data_size(const uint32_t add_mac_txt_size, const uint32_t txt_encrypt_size) 
 {
     if(add_mac_txt_size > UINT32_MAX - txt_encrypt_size)
         return UINT32_MAX;
@@ -35,7 +35,7 @@ uint32_t sgx_calc_sealed_data_size(const uint32_t add_mac_txt_size, const uint32
     if(payload_size > UINT32_MAX - sizeof(sgx_sealed_data_t))
         return UINT32_MAX;
     return (uint32_t)(sizeof(sgx_sealed_data_t) + payload_size);
-}
+} */
 
 sgx_enclave_id_t global_eid = 0;
 
@@ -116,19 +116,33 @@ int SGX_CDECL main(int argc, char *argv[])
     return 0;
 }*/
 
-void generateNewSeed(
+void create_new_scheme(
     sgx_enclave_id_t &enclave_id,
     std::mutex &mutex_enclave_id,
     std::string& seedName,
     size_t threshold,
-    size_t shareCount
+    size_t shareCount,
+    bool generate_seed
     ) {
 
     const std::lock_guard<std::mutex> lock(mutex_enclave_id);
 
     size_t secretLen = 32;
 
-    size_t sealedSecretSize = sgx_calc_sealed_data_size(0U, secretLen);
+    std::string error_message;
+    bool res = db_manager::create_new_scheme(seedName, threshold, shareCount, secretLen, error_message);
+
+    if (!res) {
+        std::cout << "Database error: " << error_message << std::endl;
+        return;
+    }
+
+    if (!generate_seed) {
+        std::cout << "Scheme created, seed not generated." << std::endl;
+        return;
+    }
+
+    size_t sealedSecretSize = utils::sgx_calc_sealed_data_size(0U, secretLen);
     char sealedSecret[sealedSecretSize];
 
     memset(sealedSecret, 0, sealedSecretSize);
@@ -159,13 +173,6 @@ void generateNewSeed(
 
     // std::cout << "sealedSecret: " << sealedSecretHex << std::endl;
 
-    std::string error_message;
-    bool res = db_manager::create_new_sheme(seedName, threshold, shareCount, secretLen, error_message);
-
-    if (!res) {
-        std::cout << "Database error: " << error_message << std::endl;
-        return;
-    }
 
     res = db_manager::add_sealed_secret(seedName, sealedSecret, sealedSecretSize, error_message);
 
@@ -198,10 +205,82 @@ void generateNewSeed(
     }
     */
     std::cout << "OK " << std::endl;
-    std::cout << "Database created: " << res << std::endl;
+    std::cout << "Scheme created, seed generated." << res << std::endl;
     
 }
 
+void add_mnemonic(
+    sgx_enclave_id_t &enclave_id,
+    std::mutex &mutex_enclave_id,
+    std::string& seed_name,
+    std::string& _mnemonics) {
+
+    const std::lock_guard<std::mutex> lock(mutex_enclave_id);
+
+    std::string error_message;
+    db_manager::Scheme scheme;
+    bool res = db_manager::get_scheme(seed_name, error_message, scheme);
+
+    if (!res) {
+        std::cout << "Database error: " << error_message << std::endl;
+        return;
+    }
+
+    std::cout << "scheme.name: " << scheme.name << std::endl;
+    std::cout << "scheme.threshold: " << scheme.threshold << std::endl;
+    std::cout << "scheme.share_count: " << scheme.share_count << std::endl;
+    std::cout << "scheme.secret_length: " << scheme.secret_length << std::endl;
+    std::cout << "scheme.sealed_secret: " << key_to_string((const unsigned char*) scheme.sealed_secret, scheme.sealed_secret_size) << std::endl;
+
+    bool is_seed_empty = std::all_of(scheme.sealed_secret, scheme.sealed_secret + scheme.sealed_secret_size, [](unsigned char c) {
+        return c == 0;
+    });
+
+    if (!is_seed_empty) {
+        std::cout << "Seed already exists." << std::endl;
+        return;
+    }
+
+    const char* mnemonics = _mnemonics.c_str();
+
+    std::cout << "mnemonics: " << mnemonics << std::endl;
+
+    // --
+    size_t max_secret_len = 32;
+    uint8_t secret[max_secret_len];
+    memset(secret, 0, max_secret_len);
+    size_t secret_len = bip39_secret_from_mnemonics(mnemonics, secret, max_secret_len);
+    // --
+
+    size_t sealed_key_share_size = utils::sgx_calc_sealed_data_size(0U, max_secret_len);
+    char sealed_key_share[sealed_key_share_size];
+
+    sgx_status_t ecall_ret;
+    sgx_status_t status = seal_key_share(
+        enclave_id, &ecall_ret, 
+        secret, max_secret_len,
+        sealed_key_share, sealed_key_share_size);
+
+    if (ecall_ret != SGX_SUCCESS) {
+        std::cout << "Key share seal Ecall failed " << std::endl;
+        return;
+    }  if (status != SGX_SUCCESS) {
+        std::cout << "Key share seal failed " << std::endl;
+        return;
+    }
+
+    std::cout << "secret: " << key_to_string((const unsigned char*) secret, max_secret_len) << std::endl;
+
+    std::cout << "sealed_key_share_size: " << key_to_string((const unsigned char*) sealed_key_share, sealed_key_share_size) << std::endl;
+
+    res = db_manager::add_sealed_key_share(seed_name, sealed_key_share, sealed_key_share_size, error_message);
+
+    if (!res) {
+        std::cout << "Database error: " << error_message << std::endl;
+        return;
+    }
+
+}
 // only for debug
 
 void print_uint8_array(const uint8_t* out, size_t len) {
@@ -439,8 +518,9 @@ int SGX_CDECL main(int argc, char *argv[])
     CLI::App app{"Shamir's Secret Sharing Scheme on Intel SGX"};
 
     CLI::App* addKeyCmd = app.add_subcommand("add-key", "Adds a key");
-    CLI::App* generateSeedCmd = app.add_subcommand("generate-seed", "Generate a seed");
-
+    CLI::App* create_new_scheme_cmd = app.add_subcommand("create-new-scheme", "Create a new scheme. Optionally generate a new secret.");
+    CLI::App* add_mnemonic_cmd = app.add_subcommand("add-mnemonic", "Generate a mnemonic");
+    
     std::string newKey;
     // Options for the "add-key" subcommand
     addKeyCmd->add_option("key", newKey, "The key to add")->required();
@@ -448,21 +528,37 @@ int SGX_CDECL main(int argc, char *argv[])
     std::string seedName;
     size_t threshold;
     size_t shareCount;
+    bool generate_seed = false;
     // Options for the "add-key" subcommand
-    generateSeedCmd->add_option("name", seedName, "The name of the seed")->required();
-    generateSeedCmd->add_option("threshold", threshold, "The threshold for this seed")->required();
-    generateSeedCmd->add_option("share-count", shareCount, "The total number of shares for this seed")->required();
+    create_new_scheme_cmd->add_option("name", seedName, "The name of the seed")->required();
+    create_new_scheme_cmd->add_option("threshold", threshold, "The threshold for this seed")->required();
+    create_new_scheme_cmd->add_option("share-count", shareCount, "The total number of shares for this seed")->required();
+    create_new_scheme_cmd->add_flag("-g,--generate-seed", generate_seed, "A boolean parameter");
+
+    std::string mnemonic;
+    add_mnemonic_cmd->add_option("name", seedName, "The name of the seed")->required();
+    add_mnemonic_cmd->add_option("mnemonic", mnemonic, "The mnemonic to add")->required();
 
     CLI11_PARSE(app, argc, argv);
 
     if(*addKeyCmd) {
         addKeyFunction(newKey);
-    } else if(*generateSeedCmd) {
+    } else if(*create_new_scheme_cmd) {
         std::cout << "Seed name: " << seedName << std::endl;
-        generateNewSeed(enclave_id, mutex_enclave_id, seedName, threshold, shareCount);
-    } else {
+        create_new_scheme(enclave_id, mutex_enclave_id, seedName, threshold, shareCount, generate_seed);
+    } else if(*add_mnemonic_cmd) {
+        add_mnemonic(enclave_id, mutex_enclave_id, seedName, mnemonic);
+    }else {
         std::cout << "No valid command was called.\n";
     }
+
+    /*
+    add_mnemonic(
+    sgx_enclave_id_t &enclave_id,
+    std::mutex &mutex_enclave_id,
+    std::string& seed_name,
+    std::string& _mnemonics)
+    */
 
     return 0;
 }

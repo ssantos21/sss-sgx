@@ -1,13 +1,15 @@
 #include "db_manager.h"
 
 #include "../libs/toml.hpp"
+#include "../utils/utils.h"
+
 #include <iostream>
 #include <string>
 #include <pqxx/pqxx>
 
 namespace db_manager {
 
-    bool create_new_sheme(const std::string& name, size_t threshold, size_t share_count, size_t secret_length, std::string& error_message) {
+    bool create_new_scheme(const std::string& name, size_t threshold, size_t share_count, size_t secret_length, std::string& error_message) {
         
         auto config = toml::parse_file("Settings.toml");
         auto database_connection_string = config["sss_sgx"]["database_connection_string"].as_string()->get();
@@ -136,5 +138,76 @@ namespace db_manager {
     
             return true;
     } // add_sealed_key_share
+
+    bool get_scheme(std::string& seed_name, std::string& error_message, Scheme& scheme) {
+
+        auto config = toml::parse_file("Settings.toml");
+        auto database_connection_string = config["sss_sgx"]["database_connection_string"].as_string()->get();
+
+        try
+        {
+            pqxx::connection conn(database_connection_string);
+            if (conn.is_open()) {
+                bool res = false;
+
+                std::string sss_scheme_query =
+                    "SELECT threshold, share_count, secret_length, sealed_secret FROM sss_scheme WHERE name = $1;";
+
+                pqxx::nontransaction ntxn(conn);
+
+                conn.prepare("sss_scheme_query", sss_scheme_query);
+
+                pqxx::result result = ntxn.exec_prepared("sss_scheme_query", seed_name);
+
+                if (!result.empty()) {
+
+                    scheme.name = seed_name;
+                    scheme.threshold = result[0]["threshold"].as<size_t>();
+                    scheme.share_count = result[0]["share_count"].as<size_t>();
+                    scheme.secret_length = result[0]["secret_length"].as<size_t>();
+
+                    scheme.sealed_secret_size = utils::sgx_calc_sealed_data_size(0U, (uint32_t) scheme.secret_length);
+
+                    scheme.sealed_secret = new char[scheme.sealed_secret_size];
+
+                    auto sealed_secret_field = result[0]["sealed_secret"];
+
+                    if (!sealed_secret_field.is_null()) {
+
+                        auto sealed_secret_view = sealed_secret_field.as<std::basic_string<std::byte>>();
+
+                        if (sealed_secret_view.size() != scheme.sealed_secret_size) {
+                            error_message = "Failed to retrieve keypair. Different size than expected !";
+                            return false;
+                        }
+
+                        memcpy(scheme.sealed_secret, sealed_secret_view.data(), scheme.sealed_secret_size);
+                    } else {
+                        memset(scheme.sealed_secret, 0, scheme.sealed_secret_size);
+                    }
+
+                    res = true;
+                }
+                else {
+                    error_message = "Failed to retrieve scheme. No data found !";
+                }
+
+                conn.close();
+                return res;
+            } else {
+                error_message = "Failed to connect to the database!";
+                return false;
+            }
+        }
+        catch (std::exception const &e)
+        {
+            error_message = e.what();
+            return false;
+        }
+
+        return true;
+
+    }
+    
 
 }// namespace db_manager
