@@ -187,12 +187,31 @@ sgx_status_t seal_key_share(
   return ret;
 }
 
+sgx_status_t test_indexes(unsigned char* indexes, size_t index_size){
+  sgx_status_t ret = SGX_SUCCESS;
+
+  // print indexes
+  // for (size_t i = 0; i < index_size; ++i) {
+  //   ocall_print_int("index ", (const int *) &i);
+  //   ocall_print_int("value ", (const int *) &indexes[i]);
+  // }
+
+  ocall_print_hex((const unsigned char**) &indexes, (int *) &index_size);
+
+  return ret;
+}
+
 sgx_status_t recover_seed(
   char* sealed_shares, size_t sealed_total_share_size,
-  size_t sealed_share_data_size, size_t num_key_sealed_shares,
+  unsigned char* indexes, size_t num_key_sealed_shares,
+  size_t sealed_share_data_size, size_t threshold,
   char* sealed_secret, size_t sealed_secret_size) {
 
   sgx_status_t ret = SGX_SUCCESS;
+
+  uint8_t* shares[threshold];
+
+  uint32_t unsealed_data_size = 0;
 
   for (size_t i = 0; i < num_key_sealed_shares; ++i) {
     char sealed_key_share[sealed_share_data_size];
@@ -205,7 +224,7 @@ sgx_status_t recover_seed(
 
     
 
-    uint32_t unsealed_data_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)sealed_key_share);
+    unsealed_data_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)sealed_key_share);
     uint8_t key_share[unsealed_data_size];
 
     if ((ret = sgx_unseal_data((sgx_sealed_data_t *)sealed_key_share, NULL, NULL, key_share, &unsealed_data_size)) != SGX_SUCCESS)
@@ -214,11 +233,43 @@ sgx_status_t recover_seed(
         return SGX_ERROR_UNEXPECTED;
     }
 
-    char* res_i_data = data_to_hex( (uint8_t*) key_share, unsealed_data_size);
+    char* res_i_data2 = data_to_hex( (uint8_t*) key_share, unsealed_data_size);
     ocall_print_int("key_share", (const int *) &i);
-    ocall_print_string(res_i_data);
+    ocall_print_string(res_i_data2);
+
+    shares[i] = new uint8_t[unsealed_data_size];
+    memcpy(shares[i], key_share, unsealed_data_size);
 
   }
+ 
+  // ocall_print_string("AQUIII 1");
+
+  assert(threshold == num_key_sealed_shares);
+
+  uint8_t secret_data[unsealed_data_size];
+
+  // ocall_print_string("AQUIII 2");
+
+  // const uint8_t recovery_share_indexes[] = {0, 1};
+  ocall_print_int("unsealed_data_size ", (const int *) &unsealed_data_size);
+  ocall_print_int("threshold ", (const int *) &threshold);
+
+  // print shares
+
+  for (size_t i = 0; i < threshold; ++i) {
+    ocall_print_int("share ", (const int *) &i);
+    ocall_print_hex((const unsigned char**) &shares[i], (int *) &unsealed_data_size);
+  }
+
+  int32_t secret_data_len = recover_secret(threshold, (const uint8_t*) indexes, (const uint8_t **)shares, unsealed_data_size, secret_data);
+  // assert(secret_data_len == unsealed_data_size);
+
+  ocall_print_int("secret_data_len ", (const int *) &secret_data_len);
+
+  char* res_i_data2 = data_to_hex(secret_data, unsealed_data_size);
+  ocall_print_string("secret ");
+  ocall_print_string(res_i_data2);
+
 
   return ret;
 

@@ -210,7 +210,7 @@ void create_new_scheme(
     
 }
 
-void recover_seed(sgx_enclave_id_t &enclave_id, std::vector<db_manager::KeyShare> &key_shares, size_t scheme_secret_length) {
+void recover_seed(sgx_enclave_id_t &enclave_id, std::vector<db_manager::KeyShare> &key_shares, db_manager::Scheme &scheme) {
     
     // Calculate the total size needed for all sealed_data
     size_t total_size = 0;
@@ -221,12 +221,14 @@ void recover_seed(sgx_enclave_id_t &enclave_id, std::vector<db_manager::KeyShare
     // Allocate memory for all_key_shares
     char* all_key_shares = new char[total_size];
 
+    size_t key_shares_size = key_shares.size();
+
     // Allocate memory for key_share_indexes
-    size_t* key_share_indexes = new size_t[key_shares.size()];
+    uint8_t key_share_indexes[key_shares_size];
 
     // Fill the arrays
     size_t current_position = 0;
-    for (size_t i = 0; i < key_shares.size(); ++i) {
+    for (size_t i = 0; i < key_shares_size; ++i) {
 
         // std::cout << "key_share " << i << " " << key_to_string((const unsigned char*) key_shares[i].sealed_data, key_shares[i].sealed_data_size) << std::endl;
 
@@ -235,7 +237,7 @@ void recover_seed(sgx_enclave_id_t &enclave_id, std::vector<db_manager::KeyShare
         current_position += key_shares[i].sealed_data_size;
 
         // Fill key_share_indexes
-        key_share_indexes[i] = key_shares[i].index;
+        key_share_indexes[i] = (uint8_t) key_shares[i].index;
 
         // std::cout << "key_share_indexes " << i << " " << key_share_indexes[i] << std::endl;
     }
@@ -243,23 +245,42 @@ void recover_seed(sgx_enclave_id_t &enclave_id, std::vector<db_manager::KeyShare
     // std::cout << "all_key_shares: " << key_to_string((const unsigned char*) all_key_shares, total_size) << std::endl;
 
     size_t sealed_shares_data_size = key_shares[0].sealed_data_size;
-    size_t num_key_sealed_shares = key_shares.size();
+    size_t num_key_sealed_shares = key_shares_size;
 
-    size_t sealed_secret_size = utils::sgx_calc_sealed_data_size(0U, scheme_secret_length);
+    size_t sealed_secret_size = utils::sgx_calc_sealed_data_size(0U, scheme.secret_length);
     char sealed_secret[sealed_secret_size];
 
     sgx_status_t ecall_ret;
-    sgx_status_t status = recover_seed(
+
+    // print indexes
+    for (size_t i = 0; i < key_shares_size; ++i) {
+        std::cout << "key_share_indexes " << i << " " << key_share_indexes[i] << std::endl;
+    }
+
+    sgx_status_t status = test_indexes(
         enclave_id, &ecall_ret,
-        all_key_shares, total_size,
-        sealed_shares_data_size, num_key_sealed_shares,
+        key_share_indexes, key_shares_size);
+
+    if (ecall_ret != SGX_SUCCESS) {
+        std::cout << "test_indexes Ecall failed " << std::endl;
+        return;
+    }  if (status != SGX_SUCCESS) {
+        std::cout << "test_indexes failed " << std::endl;
+        return;
+    }
+
+    status = recover_seed(
+        enclave_id, &ecall_ret,
+        all_key_shares, total_size, 
+        key_share_indexes, num_key_sealed_shares,
+        sealed_shares_data_size, scheme.threshold,
         sealed_secret, sealed_secret_size);
 
     if (ecall_ret != SGX_SUCCESS) {
-        std::cout << "Key share seal Ecall failed " << std::endl;
+        std::cout << "Recove Seed Ecall failed " << std::endl;
         return;
     }  if (status != SGX_SUCCESS) {
-        std::cout << "Key share seal failed " << std::endl;
+        std::cout << "Recove Seed failed " << std::endl;
         return;
     }
 
@@ -308,7 +329,7 @@ void add_mnemonic(
 
     if (key_shares.size() >= scheme.threshold) {
         std::cout << "There are already enough keys to calculate the seed." << std::endl;
-        recover_seed(enclave_id, key_shares, scheme.secret_length);
+        recover_seed(enclave_id, key_shares, scheme);
         return;
     }
 

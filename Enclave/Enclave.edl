@@ -17,9 +17,14 @@ enclave {
 
         public sgx_status_t recover_seed(
             [in, size=sealed_total_share_size] char* sealed_shares, size_t sealed_total_share_size,
+            [in, size=num_key_sealed_shares] unsigned char* indexes, size_t num_key_sealed_shares,
             size_t sealed_share_data_size,
-            size_t num_key_sealed_shares,
+            size_t threshold,
             [out, size=sealed_secret_size] char* sealed_secret, size_t sealed_secret_size
+        );
+
+        public sgx_status_t test_indexes(
+            [in, size=index_size] unsigned char* indexes, size_t index_size
         );
 
     };
