@@ -20,7 +20,7 @@ int trusted_func01()
     return trusted_x;
 }
 
-void sss_random(uint8_t *buf, size_t count, void* ctx) {
+void sss_random(uint8_t *buf, size_t count, [[maybe_unused]] void* ctx) {
   sgx_read_rand(buf, count);
 }
 
@@ -60,24 +60,24 @@ sgx_status_t generate_new_secret(
     sgx_read_rand(secret, secret_len);
 
     ocall_print_string("");
-    char* res_i_data = data_to_hex(secret, secret_len);
+    char* seed = data_to_hex(secret, secret_len);
     ocall_print_string("Seed:");
-    ocall_print_string(res_i_data);
+    ocall_print_string(seed);
     ocall_print_string("");
 
     size_t result_len = share_count * secret_len;
     uint8_t result_data[result_len];
 
-    int32_t result = split_secret(threshold, share_count, secret, secret_len, result_data, NULL, sss_random);
-    assert(result == share_count);
+    int32_t result = split_secret((uint8_t) threshold, (uint8_t) share_count, secret, secret_len, result_data, NULL, sss_random);
+    assert(result == (int32_t) share_count);
 
-    for(int i = 0; i < share_count; i++) {
+    for(size_t i = 0; i < share_count; i++) {
         size_t offset = i * secret_len;
-        ocall_print_int("Key share ", &i);
+        ocall_print_int("Key share ", (int *)  &i);
 
         // ocall_print_hex(&r_data, (int *) &secret_len);
-        char* res_i_data = data_to_hex(result_data + offset, secret_len);
-        ocall_print_string(res_i_data);
+        char* key_share_hex = data_to_hex(result_data + offset, secret_len);
+        ocall_print_string(key_share_hex);
 
         const unsigned char* share_data = result_data + offset;
         size_t share_len = secret_len;
@@ -89,9 +89,9 @@ sgx_status_t generate_new_secret(
         char sealed_share[sealed_share_size];
         memset(sealed_share, 0, sealed_share_size);
 
-        if (sealed_share_size >= sgx_calc_sealed_data_size(0U, share_len))
+        if (sealed_share_size >= sgx_calc_sealed_data_size(0U, (uint32_t) share_len))
         {
-            if ((ret = sgx_seal_data(0U, NULL, share_len, share_data, (uint32_t) sealed_share_size, (sgx_sealed_data_t *)sealed_share)) != SGX_SUCCESS)
+            if ((ret = sgx_seal_data(0U, NULL, (uint32_t) share_len, share_data, (uint32_t) sealed_share_size, (sgx_sealed_data_t *)sealed_share)) != SGX_SUCCESS)
             {
                 ocall_print_string("\nTrustedApp: sgx_seal_data() failed !\n");
             }
@@ -163,9 +163,9 @@ sgx_status_t seal_key_share(
 
   sgx_status_t ret = SGX_SUCCESS;
 
-  if (sealed_key_share_size >= sgx_calc_sealed_data_size(0U, key_share_size))
+  if (sealed_key_share_size >= sgx_calc_sealed_data_size(0U, (uint32_t) key_share_size))
   {
-    if ((ret = sgx_seal_data(0U, NULL, key_share_size, key_share, (uint32_t) sealed_key_share_size, (sgx_sealed_data_t *)sealed_key_share)) != SGX_SUCCESS)
+    if ((ret = sgx_seal_data(0U, NULL, (uint32_t) key_share_size, key_share, (uint32_t) sealed_key_share_size, (sgx_sealed_data_t *)sealed_key_share)) != SGX_SUCCESS)
     {
       ocall_print_string("\nTrustedApp: sgx_seal_data() failed !\n");
       ret =  SGX_ERROR_UNEXPECTED;
@@ -185,6 +185,8 @@ sgx_status_t recover_seed(
   unsigned char* indexes, size_t num_key_sealed_shares,
   size_t sealed_share_data_size, size_t threshold,
   char* sealed_secret, size_t sealed_secret_size) {
+
+    (void) sealed_total_share_size;
 
   sgx_status_t ret = SGX_SUCCESS;
 
@@ -220,8 +222,8 @@ sgx_status_t recover_seed(
   //   ocall_print_hex((const unsigned char**) &shares[i], (int *) &unsealed_data_size);
   // }
 
-  int32_t secret_data_len = recover_secret(threshold, (const uint8_t*) indexes, (const uint8_t **)shares, unsealed_data_size, secret_data);
-  assert(secret_data_len == unsealed_data_size);
+  int32_t secret_data_len = recover_secret((uint8_t) threshold, (const uint8_t*) indexes, (const uint8_t **)shares, unsealed_data_size, secret_data);
+  assert(secret_data_len == (int32_t) unsealed_data_size);
 
   char* seed = data_to_hex(secret_data, unsealed_data_size);
   ocall_print_string("Seed:");
@@ -245,16 +247,6 @@ sgx_status_t recover_seed(
 
 }
 
-/* sgx_status_t recover_secret(
-    char *sealed_secret, size_t sealed_secret_size,
-    char* sealed_shares, size_t sealed_total_share_size) {
-
-
-
-} */
-
-// ---test
-
 char* data_to_hex(uint8_t* in, size_t insz)
 {
   char* out = (char*) malloc(insz * 2 + 1);
@@ -267,134 +259,4 @@ char* data_to_hex(uint8_t* in, size_t insz)
   }
   pout[0] = 0;
   return out;
-}
-
-bool hex_digit_to_bin(const char hex, char *out) {
-	if (out == NULL)
-		return false;
-
-	if (hex >= '0' && hex <= '9') {
-		*out = hex - '0';
-	} else if (hex >= 'A' && hex <= 'F') {
-		*out = hex - 'A' + 10;
-	} else if (hex >= 'a' && hex <= 'f') {
-		*out = hex - 'a' + 10;
-	} else {
-		return false;
-	}
-
-	return true;
-}
-
-size_t hex_to_data(const char *hex, uint8_t **out) {
-	if (hex == NULL || *hex == '\0') {
-        *out = NULL;
-		return 0;
-    }
-    if (out == NULL) {
-        return 0;
-    }
-
-	size_t len = strlen(hex);
-	if (len % 2 != 0)
-		return 0;
-	len /= 2;
-
-	*out = (uint8_t*) malloc(len);
-	for (size_t i = 0; i < len; i++) {
-  	char b1;
-  	char b2;
-		if (!hex_digit_to_bin(hex[i * 2], &b1) || !hex_digit_to_bin(hex[i * 2 + 1], &b2)) {
-			return 0;
-		}
-		(*out)[i] = (b1 << 4) | b2;
-	}
-	return len;
-}
-
-bool equal_strings(const char* a, const char* b) {
-  return strcmp(a, b) == 0;
-}
-
-void test_hex() {
-  char* hex = "000110ff";
-  uint8_t* out;
-  size_t len = hex_to_data(hex, &out);
-  char* reout = data_to_hex(out, len);
-  assert(equal_strings(hex, reout));
-  free(out);
-  free(reout);
-}
-
-// Clearly not random. Only use for tests.
-void fake_random(uint8_t *buf, size_t count, void* ctx) {
-  uint8_t b = 0;
-  for(int i = 0; i < count; i++) {
-    buf[i] = b;
-    b = b + 17;
-  }
-}
-
-static size_t _test_split_secret(const char* secret, uint8_t threshold, uint8_t share_count, char** output_shares) {
-  uint8_t* secret_data;
-  size_t secret_len = hex_to_data(secret, &secret_data);
-  size_t result_len = share_count * secret_len;
-  uint8_t result_data[result_len];
-  int32_t result = split_secret(threshold, share_count, secret_data, secret_len, result_data, NULL, fake_random);
-  assert(result == share_count);
-
-  for(int i = 0; i < share_count; i++) {
-    size_t offset = i * secret_len;
-    output_shares[i] = data_to_hex(result_data + offset, secret_len);
-  }
-
-  free(secret_data);
-
-  return secret_len;
-}
-
-static char* _test_recover_secret(uint8_t threshold, const char** recovery_shares, const uint8_t* recovery_share_indexes) {
-  uint8_t* shares[threshold];
-  size_t share_len;
-  for(int i = 0; i < threshold; i++) {
-    share_len = hex_to_data(recovery_shares[i], &shares[i]);
-  }
-
-  uint8_t secret_data[share_len];
-
-  int32_t result = recover_secret(threshold, recovery_share_indexes, (const uint8_t **)shares, share_len, secret_data);
-  assert(result == share_len);
-
-  for(int i = 0; i < threshold; i++) {
-    free(shares[i]);
-  }
-
-  return data_to_hex(secret_data, share_len);
-}
-
-static void _test_shamir(const char* secret, uint8_t threshold, uint8_t share_count, const uint8_t* recovery_share_indexes) {
-  // printf("secret: %s\n", secret);
-
-  char* output_shares[share_count];
-  size_t secret_len = _test_split_secret(secret, threshold, share_count, output_shares);
-
-  // for(int i = 0; i < share_count; i++) {
-  //   printf("%d: %s\n", i, output_shares[i]);
-  // }
-
-  char* recovery_shares[threshold];
-  for(int i = 0; i < threshold; i++) {
-    recovery_shares[i] = output_shares[recovery_share_indexes[i]];
-  }
-
-  char* out_secret = _test_recover_secret(threshold, (const char **)recovery_shares, recovery_share_indexes);
-  // printf("out_secret: %s\n", out_secret);
-
-  for(int i = 0; i < share_count; i++) {
-    free(output_shares[i]);
-  }
-
-  assert(equal_strings(secret, out_secret));
-
-  free(out_secret);
 }
