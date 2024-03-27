@@ -9,7 +9,7 @@
 
 ## Commands:
 
-1. Generate scheme and secret
+### Generate scheme and secret
 
 ```bash
 $ ./app create-new-scheme seedname 2 3 -g
@@ -39,14 +39,14 @@ The `threshold` parameter is the threshold for this seed.
 The `share-count` is the total number of shares for this seed.
 The `-g,--generate-seed` is an optional flag to generate a new secret. If not set, the seed will be created without a secret.
 
-2. Generate scheme without secret (in this case, keys will be added later)
+### Generate scheme without secret (in this case, keys will be added later)
 
 ```bash
 $ ./app create-new-scheme seedtest1 2 3
 Scheme created, seed not generated.
 ```
 
-3. Add a mnemonic.
+### Add a mnemonic.
 
 ```bash
 $ ./app add-mnemonic seedtest1 0 "fork clerk hover mystery replace crucial industry deliver rule into broom brave derive slam limit market alarm weird worth reform idle indoor ozone must"
@@ -67,7 +67,7 @@ Seed:
 6141fc5eb49c3e0d47fb7d63aefe1a86e1d61104b50df4b8b705548a10c89505
 ```
 
-3. Add a key (hexadecimal).
+### Add a key (hexadecimal).
 
 Instead of adding a mnemonic, the user can add a key directly.
 
