@@ -32,9 +32,9 @@ agree quiz renew spring world six either foam camp ritual naive mammal update ho
 Scheme created, seed generated.
 ```
 
-The command is `adcreate-new-scheme <seed_name> <threshold> <share-count> <-g,--generate-seed>` 
+The command is `create-new-scheme <seed_name> <threshold> <share-count> <-g,--generate-seed>` 
 
-The `<seed_name>` is an identifier. Multiple seeds can be generated and the name works as a reference.
+The `seed_name` is an identifier. Multiple seeds can be generated and the name works as a reference.
 
 The `threshold` parameter is the threshold for this seed.
 
@@ -58,7 +58,7 @@ Key added.
 
 The command is `add-mnemonic <seed_name> <index> <mnemonic>`.
 
-The `<seed_name>` is the seed identifier.
+The `seed_name` is the seed identifier.
 
 The `index` parameter is the index of that key in the scheme.
 
