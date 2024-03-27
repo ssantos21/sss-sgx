@@ -23,10 +23,6 @@ enclave {
             [out, size=sealed_secret_size] char* sealed_secret, size_t sealed_secret_size
         );
 
-        public sgx_status_t test_indexes(
-            [in, size=index_size] unsigned char* indexes, size_t index_size
-        );
-
     };
 
     untrusted {

@@ -59,17 +59,11 @@ sgx_status_t generate_new_secret(
 
     sgx_read_rand(secret, secret_len);
 
-    size_t len_p = secret_len;
-    const unsigned char* priv_key_data = secret;
-    ocall_print_string("--- original priv_key:");
-    ocall_print_hex(&priv_key_data, (int *) &len_p);
-    // ocall_print_bip39(&priv_key_data, (int *) &len_p);
-
-    // uint8_t threshold = 2;
-    // uint8_t share_count = 3;
-
-    ocall_print_int("threshold", (const int *) &threshold);
-    ocall_print_int("share_count", (const int *) &share_count);
+    ocall_print_string("");
+    char* res_i_data = data_to_hex(secret, secret_len);
+    ocall_print_string("Seed:");
+    ocall_print_string(res_i_data);
+    ocall_print_string("");
 
     size_t result_len = share_count * secret_len;
     uint8_t result_data[result_len];
@@ -77,11 +71,9 @@ sgx_status_t generate_new_secret(
     int32_t result = split_secret(threshold, share_count, secret, secret_len, result_data, NULL, sss_random);
     assert(result == share_count);
 
-    ocall_print_int("result", &result);
-
     for(int i = 0; i < share_count; i++) {
         size_t offset = i * secret_len;
-        ocall_print_int("result_data ", &i);
+        ocall_print_int("Key share ", &i);
 
         // ocall_print_hex(&r_data, (int *) &secret_len);
         char* res_i_data = data_to_hex(result_data + offset, secret_len);
@@ -90,6 +82,7 @@ sgx_status_t generate_new_secret(
         const unsigned char* share_data = result_data + offset;
         size_t share_len = secret_len;
         ocall_print_bip39(&share_data, (int *) &share_len);
+        ocall_print_string("");
 
         const size_t sealed_share_size = sealed_secret_size;
 
@@ -187,20 +180,6 @@ sgx_status_t seal_key_share(
   return ret;
 }
 
-sgx_status_t test_indexes(unsigned char* indexes, size_t index_size){
-  sgx_status_t ret = SGX_SUCCESS;
-
-  // print indexes
-  // for (size_t i = 0; i < index_size; ++i) {
-  //   ocall_print_int("index ", (const int *) &i);
-  //   ocall_print_int("value ", (const int *) &indexes[i]);
-  // }
-
-  ocall_print_hex((const unsigned char**) &indexes, (int *) &index_size);
-
-  return ret;
-}
-
 sgx_status_t recover_seed(
   char* sealed_shares, size_t sealed_total_share_size,
   unsigned char* indexes, size_t num_key_sealed_shares,
@@ -218,12 +197,6 @@ sgx_status_t recover_seed(
 
     memcpy(sealed_key_share, sealed_shares + i * sealed_share_data_size, sealed_share_data_size);
 
-    // char* res_i_data = data_to_hex( (uint8_t*) sealed_key_share, sealed_share_data_size);
-    // ocall_print_int("share", (const int *) &i);
-    // ocall_print_string(res_i_data);
-
-    
-
     unsealed_data_size = sgx_get_encrypt_txt_len((const sgx_sealed_data_t *)sealed_key_share);
     uint8_t key_share[unsealed_data_size];
 
@@ -233,43 +206,40 @@ sgx_status_t recover_seed(
         return SGX_ERROR_UNEXPECTED;
     }
 
-    char* res_i_data2 = data_to_hex( (uint8_t*) key_share, unsealed_data_size);
-    ocall_print_int("key_share", (const int *) &i);
-    ocall_print_string(res_i_data2);
-
     shares[i] = new uint8_t[unsealed_data_size];
     memcpy(shares[i], key_share, unsealed_data_size);
 
   }
  
-  // ocall_print_string("AQUIII 1");
-
   assert(threshold == num_key_sealed_shares);
 
   uint8_t secret_data[unsealed_data_size];
 
-  // ocall_print_string("AQUIII 2");
-
-  // const uint8_t recovery_share_indexes[] = {0, 1};
-  ocall_print_int("unsealed_data_size ", (const int *) &unsealed_data_size);
-  ocall_print_int("threshold ", (const int *) &threshold);
-
-  // print shares
-
-  for (size_t i = 0; i < threshold; ++i) {
-    ocall_print_int("share ", (const int *) &i);
-    ocall_print_hex((const unsigned char**) &shares[i], (int *) &unsealed_data_size);
-  }
+  // for (size_t i = 0; i < threshold; ++i) {
+  //   ocall_print_int("share ", (const int *) &i);
+  //   ocall_print_hex((const unsigned char**) &shares[i], (int *) &unsealed_data_size);
+  // }
 
   int32_t secret_data_len = recover_secret(threshold, (const uint8_t*) indexes, (const uint8_t **)shares, unsealed_data_size, secret_data);
-  // assert(secret_data_len == unsealed_data_size);
+  assert(secret_data_len == unsealed_data_size);
 
-  ocall_print_int("secret_data_len ", (const int *) &secret_data_len);
+  char* seed = data_to_hex(secret_data, unsealed_data_size);
+  ocall_print_string("Seed:");
+  ocall_print_string(seed);
 
-  char* res_i_data2 = data_to_hex(secret_data, unsealed_data_size);
-  ocall_print_string("secret ");
-  ocall_print_string(res_i_data2);
-
+  if (sealed_secret_size >= sgx_calc_sealed_data_size(0U, unsealed_data_size))
+  {
+      if ((ret = sgx_seal_data(0U, NULL, unsealed_data_size, secret_data, (uint32_t) sealed_secret_size, (sgx_sealed_data_t *)sealed_secret)) != SGX_SUCCESS)
+      {
+          ocall_print_string("\nTrustedApp: sgx_seal_data() failed !\n");
+          ret = SGX_ERROR_UNEXPECTED;
+      }
+  }
+  else
+  {
+      ocall_print_string("\nTrustedApp: Size allocated for sealedprivkey by untrusted app is less than the required size !\n");
+      ret = SGX_ERROR_INVALID_PARAMETER;
+  }
 
   return ret;
 
