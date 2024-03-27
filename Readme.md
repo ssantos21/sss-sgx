@@ -35,8 +35,11 @@ Scheme created, seed generated.
 The command is `adcreate-new-scheme <seed_name> <threshold> <share-count> <-g,--generate-seed>` 
 
 The `<seed_name>` is an identifier. Multiple seeds can be generated and the name works as a reference.
+
 The `threshold` parameter is the threshold for this seed.
+
 The `share-count` is the total number of shares for this seed.
+
 The `-g,--generate-seed` is an optional flag to generate a new secret. If not set, the seed will be created without a secret.
 
 ### Generate scheme without secret (in this case, keys will be added later)
@@ -54,8 +57,11 @@ Key added.
 ```
 
 The command is `add-mnemonic <seed_name> <index> <mnemonic>`.
+
 The `<seed_name>` is the seed identifier.
+
 The `index` parameter is the index of that key in the scheme.
+
 The `mnemonic` is the mnemonic.
 
 If the user adds a new key and then the total number of keys for this seed reaches the threshold, a secret will be automatically generated.
