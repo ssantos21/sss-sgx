@@ -30,7 +30,7 @@ sgx_enclave_id_t global_eid = 0;
 std::string key_to_string(const unsigned char* key, size_t keylen) {
     std::stringstream sb;
     sb << "0x";
-    for (int i = 0; i < keylen; i++)
+    for (size_t i = 0; i < keylen; i++)
         sb << std::hex << std::setw(2) << std::setfill('0') << (int)key[i];
     return sb.str();
 }
@@ -73,7 +73,7 @@ size_t hex_to_data(const char *hex, uint8_t **out) {
 		if (!hex_digit_to_bin(hex[i * 2], &b1) || !hex_digit_to_bin(hex[i * 2 + 1], &b2)) {
 			return 0;
 		}
-		(*out)[i] = (b1 << 4) | b2;
+		(*out)[i] = static_cast<uint8_t>((b1 << 4) | b2);
 	}
 	return len;
 }
@@ -108,6 +108,7 @@ void ocall_print_bip39(const unsigned char** secret, const int *secret_len)
     size_t max_mnemonics_len = 300;
     char mnemonics[max_mnemonics_len];
     size_t mnemonics_len = bip39_mnemonics_from_secret(*secret, *secret_len, mnemonics, max_mnemonics_len);
+    (void) mnemonics_len;
     // printf("mnemonics_len %d\n", mnemonics_len);
     printf("%s\n", mnemonics);
 }
@@ -138,7 +139,7 @@ void create_new_scheme(
         return;
     }
 
-    size_t sealedSecretSize = utils::sgx_calc_sealed_data_size(0U, secretLen);
+    size_t sealedSecretSize = (size_t) utils::sgx_calc_sealed_data_size(0U, (uint32_t) secretLen);
     char sealedSecret[sealedSecretSize];
 
     memset(sealedSecret, 0, sealedSecretSize);
@@ -223,7 +224,7 @@ void recover_seed(sgx_enclave_id_t &enclave_id, std::vector<db_manager::KeyShare
     size_t sealed_shares_data_size = key_shares[0].sealed_data_size;
     size_t num_key_sealed_shares = key_shares_size;
 
-    size_t sealed_secret_size = utils::sgx_calc_sealed_data_size(0U, scheme.secret_length);
+    size_t sealed_secret_size = utils::sgx_calc_sealed_data_size(0U, (uint32_t) scheme.secret_length);
     char sealed_secret[sealed_secret_size];
 
     sgx_status_t ecall_ret;
@@ -298,7 +299,7 @@ void add_key(
     size_t secret_len,
     db_manager::Scheme& scheme) {
 
-    size_t sealed_key_share_size = utils::sgx_calc_sealed_data_size(0U, secret_len);
+    size_t sealed_key_share_size = utils::sgx_calc_sealed_data_size(0U, (uint32_t) secret_len);
     char sealed_key_share[sealed_key_share_size];
 
     sgx_status_t ecall_ret;
