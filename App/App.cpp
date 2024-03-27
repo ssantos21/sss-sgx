@@ -303,8 +303,6 @@ void add_mnemonic(
         return;
     }
 
-    
-
     /* std::cout << "scheme.name: " << scheme.name << std::endl;
     std::cout << "scheme.threshold: " << scheme.threshold << std::endl;
     std::cout << "scheme.share_count: " << scheme.share_count << std::endl;
@@ -332,8 +330,6 @@ void add_mnemonic(
         recover_seed(enclave_id, key_shares, scheme);
         return;
     }
-
-    
 
     const char* mnemonics = _mnemonics.c_str();
 
@@ -374,6 +370,14 @@ void add_mnemonic(
         return;
     }
 
+    key_shares = db_manager::get_key_shares(scheme, error_message);
+
+    if (key_shares.size() >= scheme.threshold) {
+        std::cout << "There are already enough keys to calculate the seed." << std::endl;
+        recover_seed(enclave_id, key_shares, scheme);
+        return;
+    }
+    
 }
 // only for debug
 
