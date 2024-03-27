@@ -1,72 +1,81 @@
-# Intel SGX Enclave Tutorial (Ubuntu)
+# Shamir's Secret Sharing Scheme on Intel SGX
 
-This application is a minimum example for running secured application with Intel SGX enclave.
+## Setup:
 
-## Intel SGX Drivers and SDK Installation
+1. Clone the repository
+2. Run `make SGX_MODE=SIM`
+2. Set the correct database in `Settings.toml` file
+3. Run the commands below.
 
-Before building this application, please set the required software in Intel SGX platform.
+## Commands:
 
-See installation guide for Intel SGX software and then install drivers, runtime, and SDKs.<br>
-Here I installed v2.16 on Ubuntu Server 20.04 LTS (Standard DC2s v3) in Microsoft Azure.
+1. Generate scheme and secret
 
-```
-#
-# Setup for platform driver
-#
+```bash
+$ ./app create-new-scheme seedname 2 3 -g
 
-# update system
-sudo apt update
-sudo apt upgrade
-# install Intel SGX driver
-# (use out-of-tree platform's driver for Azure VM image)
-sudo apt-get install build-essential ocaml automake autoconf libtool wget python libssl-dev dkms
-wget https://download.01.org/intel-sgx/latest/linux-latest/distro/ubuntu20.04-server/sgx_linux_x64_driver_2.11.054c9c4c.bin
-chmod 777 sgx_linux_x64_driver_2.11.054c9c4c.bin
-sudo ./sgx_linux_x64_driver_2.11.054c9c4c.bin
+Seed:
+b4cca0656b0b67113291e6378d776b81c469c1c82a859a5dea551bc62ce02938
 
-#
-# Setup for application users
-#
+Key share 0
+c31d3f75c46742be525cdfc1c66ca404a59965bb4b063947bf13de806115a108
+seek try talent match injury game enact orbit scrub cricket cinnamon announce flower ready unfold general deer digital shaft rug alcohol member loud before
 
-# add repository
-echo 'deb [arch=amd64] https://download.01.org/intel-sgx/sgx_repo/ubuntu focal main' | sudo tee /etc/apt/sources.list.d/intel-sgx.list
-# add key
-wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | sudo apt-key add
-# install packages
-sudo apt-get update
-sudo apt-get install libsgx-epid libsgx-quote-ex libsgx-dcap-ql
-# install DCAP QPL package
-sudo apt-get install libsgx-dcap-default-qpl
+Key share 1
+a019d2ae5f1b8325be13553c4373d3ea552c3aa8bba03244491a7189acccc37e
+parade soldier process sail return name weapon height detail breeze visual start fan bubble pepper inject crane car educate toast onion grid assume skirt
 
-#
-# Setup for application developers
-#
+Key share 2
+0515fed8e99fdb9391c2d020d7524ac35ee8db9db0512f4148019b92e0bc65e4
+agree quiz renew spring world six either foam camp ritual naive mammal update horse item any consider apart about damp come funny nurse minimum
 
-# install required packages
-sudo apt-get install build-essential python
-# download sdk
-wget https://download.01.org/intel-sgx/latest/linux-latest/distro/ubuntu20.04-server/sgx_linux_x64_sdk_2.16.100.4.bin
-# install sdk
-chmod +x sgx_linux_x64_sdk_2.16.100.4.bin
-sudo ./sgx_linux_x64_sdk_2.16.100.4.bin --prefix /opt/intel
-# set environment
-source /opt/intel/sgxsdk/environment
-# install other dev packages
-sudo apt-get install libsgx-enclave-common-dev libsgx-dcap-ql-dev libsgx-dcap-default-qpl-dev
+Scheme created, seed generated.
 ```
 
-## Build and run this application
+The command is `adcreate-new-scheme <seed_name> <threshold> <share-count> <-g,--generate-seed>` 
 
-Now you can build and run this application.
+The `<seed_name>` is an identifier. Multiple seeds can be generated and the name works as a reference.
+The `threshold` parameter is the threshold for this seed.
+The `share-count` is the total number of shares for this seed.
+The `-g,--generate-seed` is an optional flag to generate a new secret. If not set, the seed will be created without a secret.
 
+2. Generate scheme without secret (in this case, keys will be added later)
+
+```bash
+$ ./app create-new-scheme seedtest1 2 3
+Scheme created, seed not generated.
 ```
-# clone this repo
-git clone https://github.com/ssantos21/intel-sgx-enclave-base
-cd intel-sgx-enclave-base
-# build application
-make SGX_MODE=SIM
-# run application
-./app
+
+3. Add a mnemonic.
+
+```bash
+$ ./app add-mnemonic seedtest1 0 "fork clerk hover mystery replace crucial industry deliver rule into broom brave derive slam limit market alarm weird worth reform idle indoor ozone must"
+Key added.
 ```
 
-See [tsmatz's blog post](https://tsmatz.wordpress.com/2022/05/17/confidential-computing-intel-sgx-enclave-getting-started) for memory scraping test with this application.
+The command is `add-mnemonic <seed_name> <index> <mnemonic>`.
+The `<seed_name>` is the seed identifier.
+The `index` parameter is the index of that key in the scheme.
+The `mnemonic` is the mnemonic.
+
+If the user adds a new key and then the total number of keys for this seed reaches the threshold, a secret will be automatically generated.
+
+```bash
+$ ./app add-mnemonic seedtest1 1 "volcano share general tonight artefact injury alcohol unveil asset grain flee nut piece parrot vital improve property desk pact three dog vehicle purity turn"
+There are already enough keys to calculate the seed.
+Seed:
+6141fc5eb49c3e0d47fb7d63aefe1a86e1d61104b50df4b8b705548a10c89505
+```
+
+3. Add a key (hexadecimal).
+
+Instead of adding a mnemonic, the user can add a key directly.
+
+```bash
+$ ./app add-key seedtest2 1 f5b8a5837240cee84187730dacb1634bda4740fd4390ac677e7af08409e3eb97
+Key added.
+```
+
+The command is `add-key <seed_name> <index> <key>`.
+
+The parameters are the same as `add-mnemonic` except for `<key>`, which is a key share represented in hexadecimal.

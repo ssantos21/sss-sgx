@@ -409,7 +409,7 @@ int SGX_CDECL main(int argc, char *argv[])
     create_new_scheme_cmd->add_option("name", seedName, "The name of the seed")->required();
     create_new_scheme_cmd->add_option("threshold", threshold, "The threshold for this seed")->required();
     create_new_scheme_cmd->add_option("share-count", shareCount, "The total number of shares for this seed")->required();
-    create_new_scheme_cmd->add_flag("-g,--generate-seed", generate_seed, "A boolean parameter");
+    create_new_scheme_cmd->add_flag("-g,--generate-seed", generate_seed, "Optional flag to generate a new secret. If not set, the seed will be created without a secret.");
 
     std::string mnemonic;
     size_t key_share_index;
