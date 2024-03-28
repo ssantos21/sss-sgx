@@ -3,9 +3,12 @@
 ## Setup:
 
 1. Clone the repository
-2. Run `make SGX_MODE=SIM`
-2. Set the correct database in `Settings.toml` file
-3. Run the commands below.
+2. Install https://github.com/ssantos21/bc-crypto-base
+3. Install https://github.com/ssantos21/bc-shamir
+4. Install https://github.com/ssantos21/bc-bip39
+5. Run `make SGX_MODE=SIM`
+6. Set the correct database in `Settings.toml` file
+7. Run the commands below.
 
 ## Commands:
 
