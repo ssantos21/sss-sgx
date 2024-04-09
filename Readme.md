@@ -6,9 +6,24 @@
 2. Install https://github.com/ssantos21/bc-crypto-base
 3. Install https://github.com/ssantos21/bc-shamir
 4. Install https://github.com/ssantos21/bc-bip39
-5. Run `make SGX_MODE=SIM`
-6. Set the correct database in `Settings.toml` file
-7. Run the commands below.
+5. Install libpqxx-dev 7.8.1 (C++ client API for PostgreSQ) 
+```bash
+# Remove any other version of libpqxx-dev from the operating system if necessary
+$ sudo apt remove libpqxx-dev
+# It may be necessary to install `libpq-dev` first.
+$ sudo apt-get install libpq-dev
+# Clone libpqxx project
+$ git clone https://github.com/jtv/libpqxx.git
+# Change to 7.8.1 version
+$ cd libpqxx && git checkout 7.8.1
+# Build it
+$ cd cmake && cmake .. && cmake --build .
+# Install it
+$ sudo cmake --install .
+```
+6. Run `make SGX_MODE=SIM`
+7. Set the correct database in `Settings.toml` file
+8. Run the commands below.
 
 ## Commands:
 
@@ -88,3 +103,29 @@ Key added.
 The command is `add-key <seed_name> <index> <key>`.
 
 The parameters are the same as `add-mnemonic` except for `<key>`, which is a key share represented in hexadecimal.
+
+## Running from docker
+
+```bash
+$ docker compose build
+
+$ docker compose up
+```
+
+Now the same commands above can be used.
+
+```bash
+$ docker compose run sss-sgx create-new-scheme seedtest1 2 3 -g
+
+$ docker compose run sss-sgx create-new-scheme seedtest2 2 3
+
+$ docker compose run sss-sgx add-mnemonic seedtest2 0 "fork clerk hover mystery replace crucial industry deliver rule into broom brave derive slam limit market alarm weird worth reform idle indoor ozone must"
+
+$ docker compose run sss-sgx add-key seedtest2 1 f5b8a5837240cee84187730dacb1634bda4740fd4390ac677e7af08409e3eb97
+```
+
+To stop the container and remove the volume.
+
+```bash
+$ docker-compose down -v 
+```

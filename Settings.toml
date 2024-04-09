@@ -1,2 +1,2 @@
 [sss_sgx]
-database_connection_string = "postgresql://postgres:postgres@localhost/sss_db"
+database_connection_string = "postgres://postgres:postgres@db/sss_db"
