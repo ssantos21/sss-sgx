@@ -10,10 +10,20 @@
 
 namespace db_manager {
 
+    std::string getDatabaseConnectionString() {
+        const char* value = std::getenv("DATABASE_URL");
+
+        if (value == nullptr) {
+            auto config = toml::parse_file("Settings.toml");
+            return config["sss_sgx"]["database_connection_string"].as_string()->get();
+        } else {
+            return std::string(value);        
+        }
+    }
+
     bool create_new_scheme(const std::string& name, size_t threshold, size_t share_count, size_t secret_length, std::string& error_message) {
         
-        auto config = toml::parse_file("Settings.toml");
-        auto database_connection_string = config["sss_sgx"]["database_connection_string"].as_string()->get();
+        auto database_connection_string = getDatabaseConnectionString();
 
         try
         {
@@ -58,8 +68,7 @@ namespace db_manager {
 
     bool add_sealed_secret(const std::string& name, char* sealed_secret, size_t sealed_secret_size, std::string& error_message) {
     
-        auto config = toml::parse_file("Settings.toml");
-        auto database_connection_string = config["sss_sgx"]["database_connection_string"].as_string()->get();
+        auto database_connection_string = getDatabaseConnectionString();
 
         try
         {
@@ -96,8 +105,7 @@ namespace db_manager {
 
     bool add_sealed_key_share(const std::string& seed_name, char* sealed_key_share, size_t sealed_key_share_size, size_t index, std::string& error_message) {
         
-            auto config = toml::parse_file("Settings.toml");
-            auto database_connection_string = config["sss_sgx"]["database_connection_string"].as_string()->get();
+            auto database_connection_string = getDatabaseConnectionString();
     
             try
             {
@@ -144,9 +152,7 @@ namespace db_manager {
 
     bool get_scheme(std::string& seed_name, std::string& error_message, Scheme& scheme) {
 
-        auto config = toml::parse_file("Settings.toml");
-        auto database_connection_string = config["sss_sgx"]["database_connection_string"].as_string()->get();
-
+        auto database_connection_string = getDatabaseConnectionString();
         try
         {
             pqxx::connection conn(database_connection_string);
@@ -226,8 +232,7 @@ namespace db_manager {
                 return key_shares;
             }
     
-            auto config = toml::parse_file("Settings.toml");
-            auto database_connection_string = config["sss_sgx"]["database_connection_string"].as_string()->get();
+            auto database_connection_string = getDatabaseConnectionString();
     
             try
             {

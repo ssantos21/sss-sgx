@@ -127,5 +127,5 @@ $ docker compose run sss-sgx add-key seedtest2 1 f5b8a5837240cee84187730dacb1634
 To stop the container and remove the volume.
 
 ```bash
-$ docker-compose down -v 
+$ docker compose down -v 
 ```
