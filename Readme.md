@@ -107,7 +107,7 @@ The parameters are the same as `add-mnemonic` except for `<key>`, which is a key
 ## Running from docker
 
 ```bash
-$ docker compose build
+$ docker compose build --build-arg SGX_MODE=SIM # or HW for hardware mode
 
 $ docker compose up
 ```
