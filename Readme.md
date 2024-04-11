@@ -135,5 +135,11 @@ $ docker compose down -v
 ### Hardware Mode
 
 ```bash
-$ ./Dockerfiles/HW/build_compose_run.sh
+$ cd Dockerfiles/HW
+$ ./build_compose_run.sh
 ```
+
+```bash
+$ docker compose run sample create-new-scheme seedtest1 2 3 -g
+```
+

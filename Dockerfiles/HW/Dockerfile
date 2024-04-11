@@ -31,8 +31,10 @@ RUN git clone https://github.com/ssantos21/bc-bip39.git && cd bc-bip39 && \
 
 RUN rm sgx_linux_x64_sdk_2.23.100.2.bin && rm -rf libpqxx bc-crypto-base bc-shamir bc-bip39
 
-RUN cd / && git clone https://github.com/ssantos21/sss-sgx.git
+# RUN cd / && git clone https://github.com/ssantos21/sss-sgx.git
+COPY . /sss-sgx
 WORKDIR /sss-sgx
+RUN rm -rf Dockerfiles
 RUN SGX_DEBUG=0 SGX_MODE=HW SGX_PRERELEASE=1 make
 
 FROM sgxbase as sample

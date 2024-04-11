@@ -2,6 +2,10 @@ version: '3'
 
 services:
   aesm:
+    build:
+      context: ./../..
+      dockerfile: Dockerfiles/HW/Dockerfile
+      target: aesm
     image: sgx_aesm
     devices:
       - /dev/isgx
@@ -21,6 +25,10 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   sample:
+    build:
+      context: ./../..
+      dockerfile: Dockerfiles/HW/Dockerfile
+      target: sample
     image: sgx_sample
     depends_on:
       - aesm
