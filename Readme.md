@@ -104,12 +104,14 @@ The command is `add-key <seed_name> <index> <key>`.
 
 The parameters are the same as `add-mnemonic` except for `<key>`, which is a key share represented in hexadecimal.
 
-## Running from docker
+## Running from docker 
+
+### Simulation Mode
 
 ```bash
-$ docker compose build --build-arg SGX_MODE=SIM # or HW for hardware mode
+$ docker compose --file Dockerfiles/SIM/docker-compose.yml build
 
-$ docker compose up
+$ docker compose --file Dockerfiles/SIM/docker-compose.yml up
 ```
 
 Now the same commands above can be used.

@@ -44,11 +44,10 @@ RUN rm sgx_linux_x64_sdk_2.23.100.2.bin && rm -rf libpqxx bc-crypto-base bc-sham
 
 COPY . /home/sss-sgx
 
-# Introduce ARG for SGX_MODE with a default value of SIM
-ARG SGX_MODE=SIM
-
 WORKDIR /home/sss-sgx
+
+RUN rm -rf Dockerfiles
 # Use the SGX_MODE argument in the make command
-RUN make SGX_MODE=${SGX_MODE}
+RUN make SGX_MODE=SIM
 
 ENTRYPOINT ["/home/sss-sgx/app"]
