@@ -1,0 +1,40 @@
+version: '3'
+
+services:
+  aesm:
+    image: sgx_aesm
+    devices:
+      - /dev/isgx
+    volumes:
+      - aesmd-socket:/var/run/aesmd
+    stdin_open: true
+    tty: true
+
+  db:
+    image: postgres:16.2
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sss_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  sample:
+    image: sgx_sample
+    depends_on:
+      - aesm
+      - db
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@db/sss_db
+    devices:
+      - /dev/isgx
+    volumes:
+      - aesmd-socket:/var/run/aesmd
+    stdin_open: true
+    tty: true
+
+volumes:
+  aesmd-socket:
+    external: true
+  postgres_data:

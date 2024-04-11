@@ -131,3 +131,9 @@ To stop the container and remove the volume.
 ```bash
 $ docker compose down -v 
 ```
+
+### Hardware Mode
+
+```bash
+$ ./Dockerfiles/HW/build_compose_run.sh
+```
