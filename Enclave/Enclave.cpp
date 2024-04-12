@@ -78,20 +78,19 @@ sgx_status_t generate_new_secret(
         // ocall_print_hex(&r_data, (int *) &secret_len);
         char* key_share_hex = data_to_hex(result_data + offset, secret_len);
         ocall_print_string(key_share_hex);
-
-        const unsigned char* share_data = result_data + offset;
-        size_t share_len = secret_len;
-        ocall_print_bip39(&share_data, (int *) &share_len);
+        ocall_print_bip39(key_share_hex);
         ocall_print_string("");
 
+        const unsigned char* share_data = result_data + offset;
+        uint32_t share_len = (uint32_t) secret_len;
         const size_t sealed_share_size = sealed_secret_size;
 
         char sealed_share[sealed_share_size];
         memset(sealed_share, 0, sealed_share_size);
 
-        if (sealed_share_size >= sgx_calc_sealed_data_size(0U, (uint32_t) share_len))
+        if (sealed_share_size >= sgx_calc_sealed_data_size(0U, share_len))
         {
-            if ((ret = sgx_seal_data(0U, NULL, (uint32_t) share_len, share_data, (uint32_t) sealed_share_size, (sgx_sealed_data_t *)sealed_share)) != SGX_SUCCESS)
+            if ((ret = sgx_seal_data(0U, NULL, share_len, share_data, (uint32_t) sealed_share_size, (sgx_sealed_data_t *)sealed_share)) != SGX_SUCCESS)
             {
                 ocall_print_string("\nTrustedApp: sgx_seal_data() failed !\n");
             }

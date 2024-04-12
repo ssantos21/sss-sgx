@@ -101,15 +101,15 @@ void ocall_print_hex(const unsigned char** key, const int *keylen)
     printf("%s\n", key_to_string(*key, *keylen).c_str());
 }
 
-void ocall_print_bip39(const unsigned char** secret, const int *secret_len)
+void ocall_print_bip39(const char *secret_hex)
 {
-    /// printf("%s\n", key_to_string(*key, *keylen).c_str());
+    uint8_t* secret;
+    size_t secret_len = hex_to_data(secret_hex, &secret);
 
     size_t max_mnemonics_len = 300;
     char mnemonics[max_mnemonics_len];
-    size_t mnemonics_len = bip39_mnemonics_from_secret(*secret, *secret_len, mnemonics, max_mnemonics_len);
+    size_t mnemonics_len = bip39_mnemonics_from_secret(secret, secret_len, mnemonics, max_mnemonics_len);
     (void) mnemonics_len;
-    // printf("mnemonics_len %d\n", mnemonics_len);
     printf("%s\n", mnemonics);
 }
 
