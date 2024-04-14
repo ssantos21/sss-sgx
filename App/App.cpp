@@ -88,7 +88,7 @@ void ocall_wait_keyinput(const char *str)
 /* ocall functions (untrusted) */
 void ocall_print_string(const char *str)
 {
-    printf("%s\n", str);
+    printf("%s", str);
 }
 
 void ocall_print_int(const char *str, const int *number)
@@ -110,7 +110,7 @@ void ocall_print_bip39(const char *secret_hex)
     char mnemonics[max_mnemonics_len];
     size_t mnemonics_len = bip39_mnemonics_from_secret(secret, secret_len, mnemonics, max_mnemonics_len);
     (void) mnemonics_len;
-    printf("%s\n", mnemonics);
+    printf("Mnemonics: %s\n", mnemonics);
 }
 
 void create_new_scheme(
@@ -188,7 +188,7 @@ void create_new_scheme(
     }
     */
 
-    std::cout << "Scheme created, seed generated." << std::endl;
+    std::cout << "\nScheme created, seed generated." << std::endl;
     
 }
 
@@ -335,12 +335,28 @@ void add_key(
 
 }
 
+char* data_to_hex(uint8_t* in, size_t insz)
+{
+  char* out = (char*) malloc(insz * 2 + 1);
+  uint8_t* pin = in;
+  const char * hex = "0123456789abcdef";
+  char* pout = out;
+  for(; pin < in + insz; pout += 2, pin++){
+    pout[0] = hex[(*pin>>4) & 0xF];
+    pout[1] = hex[ *pin     & 0xF];
+  }
+  pout[0] = 0;
+  return out;
+}
+
 void add_mnemonic(
     sgx_enclave_id_t &enclave_id,
     std::mutex &mutex_enclave_id,
     std::string& seed_name,
     size_t key_share_index,
-    std::string& _mnemonics) {
+    std::string& _mnemonics,
+    std::string& _password) {
+
     const std::lock_guard<std::mutex> lock(mutex_enclave_id);
 
     db_manager::Scheme scheme;
@@ -350,13 +366,50 @@ void add_mnemonic(
 
     const char* mnemonics = _mnemonics.c_str();
 
-    size_t max_secret_len = scheme.secret_length;
-    uint8_t secret[max_secret_len];
-    memset(secret, 0, max_secret_len);
-    size_t secret_len = bip39_secret_from_mnemonics(mnemonics, secret, max_secret_len);
+    const char* password = _password.c_str();
 
-    add_key(enclave_id, seed_name, key_share_index, secret, secret_len, scheme);
+    unsigned char* password_bytes = (unsigned char*) malloc(_password.size());
+    memcpy(password_bytes, password, _password.size());
+
+    size_t max_secret_len = scheme.secret_length;
+    uint8_t xor_secret[max_secret_len];
+    memset(xor_secret, 0, max_secret_len);
+    size_t xor_secret_len = bip39_secret_from_mnemonics(mnemonics, xor_secret, max_secret_len);
+
+    size_t sealed_key_share_size = utils::sgx_calc_sealed_data_size(0U, (uint32_t) xor_secret_len);
+    char sealed_key_share[sealed_key_share_size];
+
+    sgx_status_t ecall_ret;
+    sgx_status_t status = sealed_key_from_mnemonics(
+        enclave_id, &ecall_ret, 
+        xor_secret, xor_secret_len,
+        password_bytes, _password.size(),
+        sealed_key_share, sealed_key_share_size);
+
+    if (ecall_ret != SGX_SUCCESS) {
+        std::cout << "Key share seal Ecall failed " << std::endl;
+        return;
+    }  if (status != SGX_SUCCESS) {
+        std::cout << "Key share seal failed " << std::endl;
+        return;
+    }
     
+    std::string error_message;
+    bool res = db_manager::add_sealed_key_share(seed_name, sealed_key_share, sealed_key_share_size, key_share_index, error_message);
+
+    if (!res) {
+        std::cout << "Database error: " << error_message << std::endl;
+        return;
+    }
+
+    std::vector<db_manager::KeyShare>  key_shares = db_manager::get_key_shares(scheme, error_message);
+
+    if (key_shares.size() >= scheme.threshold) {
+        std::cout << "There are already enough keys to calculate the seed." << std::endl;
+        recover_seed(enclave_id, key_shares, scheme, true);
+    } else {
+        std::cout << "Key added." << std::endl;
+    }
 }
 
 void add_key(
@@ -412,10 +465,12 @@ int SGX_CDECL main(int argc, char *argv[])
     create_new_scheme_cmd->add_flag("-g,--generate-seed", generate_seed, "Optional flag to generate a new secret. If not set, the seed will be created without a secret.");
 
     std::string mnemonic;
+    std::string password;
     size_t key_share_index;
     add_mnemonic_cmd->add_option("name", seedName, "The name of the seed")->required();
     add_mnemonic_cmd->add_option("key_share_index", key_share_index, "The index of this key in the Shamir secret scheme")->required();
     add_mnemonic_cmd->add_option("mnemonic", mnemonic, "The mnemonic to add")->required();
+    add_mnemonic_cmd->add_option("password", password, "Password for additional security")->required();
 
     std::string new_key;
     add_key_cmd->add_option("name", seedName, "The name of the seed")->required();
@@ -429,7 +484,7 @@ int SGX_CDECL main(int argc, char *argv[])
     } else if(*create_new_scheme_cmd) {
         create_new_scheme(enclave_id, mutex_enclave_id, seedName, threshold, shareCount, generate_seed);
     } else if(*add_mnemonic_cmd) {
-        add_mnemonic(enclave_id, mutex_enclave_id, seedName, key_share_index, mnemonic);
+        add_mnemonic(enclave_id, mutex_enclave_id, seedName, key_share_index, mnemonic, password);
     }else {
         std::cout << "No valid command was called.\n";
     }

@@ -13,6 +13,8 @@
 #include "sgx_trts.h"
 #include "sgx_tseal.h"
 
+#include "libs/monocypher.h"
+
 int trusted_func01()
 {
     int trusted_x = 987654321;
@@ -25,6 +27,84 @@ void sss_random(uint8_t *buf, size_t count, [[maybe_unused]] void* ctx) {
 }
 
 char* data_to_hex(uint8_t* in, size_t insz);
+
+sgx_status_t generate_random_password(unsigned char* password, size_t size) {
+
+  if (!password || size < 2) return SGX_ERROR_INVALID_PARAMETER; // Need at least space for one character and a null terminator
+
+  char list[] = "123456789qwertyupasdfghjkzxcvbnmQWERTYUPASDFGHJKZXCVBNM";
+
+  char char_password[size];
+  memset(char_password, 0, sizeof(char_password));
+  uint8_t random_byte;
+
+  for (size_t i = 0; i < size; i++) {
+      sgx_status_t status = sgx_read_rand(&random_byte, 1);
+      if (status != SGX_SUCCESS) {
+        return status;
+      }
+      char_password[i] = list[random_byte % (sizeof list - 1)];
+  }
+
+  char password_print[size + 1];
+  memset(password_print, 0, size + 1);
+  memcpy(password_print, char_password, size);
+  password_print[size] = '\0';
+
+  ocall_print_string("Password: ");
+  ocall_print_string(password_print);
+  ocall_print_string("\n");
+
+  memcpy(password, char_password, size);
+  
+  return SGX_SUCCESS;
+}
+
+
+void xor_arrays(const unsigned char *data1, const unsigned char *data2, unsigned char *result, size_t size) {
+  
+  for (size_t i = 0; i < size; i++) {
+    // Dereference each pointer in share_data to get the value, then XOR with hash
+    result[i] = data1[i] ^ data2[i];
+  }
+}
+
+sgx_status_t apply_password(const unsigned char *share_data, unsigned char *xor_result, size_t size) {
+
+  unsigned char password[12];
+  size_t password_size = sizeof(password);
+  sgx_status_t ret = generate_random_password(password, password_size);
+  if (ret != SGX_SUCCESS) {
+    return ret;
+  }
+
+  char* password_hex = data_to_hex(password, password_size);
+  ocall_print_string("password_hex:");
+  ocall_print_string(password_hex);  
+  ocall_print_string("\n");
+
+  // Define the output hash array and size
+  uint8_t hash_password[size];  // Output size for 256-bit hash
+  size_t hash_password_size = sizeof(hash_password);  // Size of the hash (32 bytes)
+  memset(hash_password, 0, hash_password_size);
+
+  // Perform the hash computation
+  crypto_blake2b(hash_password, hash_password_size, password, password_size);
+
+  // ocall_print_string("");
+  // char* hash_hex = data_to_hex(hash_password, hash_password_size);
+  // ocall_print_string("hash_password:");
+  // ocall_print_string(hash_hex);
+
+  xor_arrays(hash_password, share_data, xor_result, size);
+
+  // ocall_print_string("");
+  // char* xor_result_hex = data_to_hex(xor_result, size);
+  // ocall_print_string("xor_result:");
+  // ocall_print_string(xor_result_hex);
+
+  return SGX_SUCCESS;
+}
 
 sgx_status_t generate_new_secret(
     size_t threshold, 
@@ -59,11 +139,10 @@ sgx_status_t generate_new_secret(
 
     sgx_read_rand(secret, secret_len);
 
-    ocall_print_string("");
+    ocall_print_string("\nSeed: ");
     char* seed = data_to_hex(secret, secret_len);
-    ocall_print_string("Seed:");
     ocall_print_string(seed);
-    ocall_print_string("");
+    ocall_print_string("\n");
 
     size_t result_len = share_count * secret_len;
     uint8_t result_data[result_len];
@@ -73,17 +152,32 @@ sgx_status_t generate_new_secret(
 
     for(size_t i = 0; i < share_count; i++) {
         size_t offset = i * secret_len;
-        ocall_print_int("Key share ", (int *)  &i);
+        ocall_print_string("\n");
+        ocall_print_int("Key share index: ", (int *)  &i);
 
         // ocall_print_hex(&r_data, (int *) &secret_len);
         char* key_share_hex = data_to_hex(result_data + offset, secret_len);
+        ocall_print_string("Key : ");
         ocall_print_string(key_share_hex);
-        ocall_print_bip39(key_share_hex);
-        ocall_print_string("");
+        ocall_print_string("\n");
+        // ocall_print_bip39(key_share_hex);
+        // ocall_print_string("");
 
         const unsigned char* share_data = result_data + offset;
         uint32_t share_len = (uint32_t) secret_len;
         const size_t sealed_share_size = sealed_secret_size;
+
+        uint8_t xor_result[share_len];
+        memset(xor_result, 0, share_len);
+
+        ret = apply_password(share_data, xor_result, share_len);
+        if (ret != SGX_SUCCESS) {
+          return ret;
+        }
+
+        char* xor_result_hex = data_to_hex(xor_result, share_len);
+        ocall_print_bip39(xor_result_hex);
+        ocall_print_string("");
 
         char sealed_share[sealed_share_size];
         memset(sealed_share, 0, sealed_share_size);
@@ -258,4 +352,34 @@ char* data_to_hex(uint8_t* in, size_t insz)
   }
   pout[0] = 0;
   return out;
+}
+
+sgx_status_t sealed_key_from_mnemonics(
+  unsigned char* xor_secret, size_t xor_secret_len,
+  unsigned char* password, size_t password_len,
+  char* sealed_key_share, size_t sealed_key_share_size) 
+{
+  sgx_status_t ret = SGX_SUCCESS;
+
+  // Define the output hash array and size
+  uint8_t hash_password[xor_secret_len];  // Output size for 256-bit hash
+  size_t hash_password_size = sizeof(hash_password);  // Size of the hash (32 bytes)
+  memset(hash_password, 0, hash_password_size);
+
+  // Perform the hash computation
+  crypto_blake2b(hash_password, hash_password_size, password, password_len);
+
+  size_t key_share_size = xor_secret_len;
+  uint8_t key_share[key_share_size];
+
+  xor_arrays(hash_password, xor_secret, key_share, key_share_size);
+
+  // char* secret_hex = data_to_hex(secret, xor_secret_len);
+  // ocall_print_string("Secret: ");
+  // ocall_print_string(secret_hex);
+  // ocall_print_string("\n");
+
+  seal_key_share(key_share, key_share_size, sealed_key_share, sealed_key_share_size);
+
+  return ret;
 }
