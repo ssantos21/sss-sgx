@@ -32,20 +32,19 @@ $ sudo cmake --install .
 ```bash
 $ ./app create-new-scheme seedname 2 3 -g
 
-Seed:
-b4cca0656b0b67113291e6378d776b81c469c1c82a859a5dea551bc62ce02938
+Seed: 47e3661d0ee2ec9ca99914950a03c691ada5a6aeacd6b52ff8b78459e83a7195
 
-Key share 0
-c31d3f75c46742be525cdfc1c66ca404a59965bb4b063947bf13de806115a108
-seek try talent match injury game enact orbit scrub cricket cinnamon announce flower ready unfold general deer digital shaft rug alcohol member loud before
+Key share index: 0
+Password: 77kU3P3PSdNc
+Mnemonics: island blade material chunk file desk mouse pole start civil inspire faculty alien always opera year busy beyond fiction start express slogan winner champion
 
-Key share 1
-a019d2ae5f1b8325be13553c4373d3ea552c3aa8bba03244491a7189acccc37e
-parade soldier process sail return name weapon height detail breeze visual start fan bubble pepper inject crane car educate toast onion grid assume skirt
+Key share index: 1
+Password: A1c4KbntFETu
+Mnemonics: jump about pluck this boil impulse wrap increase gaze sand tattoo jungle scorpion destroy ill neutral diamond survey biology zebra very sea dynamic episode
 
-Key share 2
-0515fed8e99fdb9391c2d020d7524ac35ee8db9db0512f4148019b92e0bc65e4
-agree quiz renew spring world six either foam camp ritual naive mammal update horse item any consider apart about damp come funny nurse minimum
+Key share index: 2
+Password: JkWDepdT5sga
+Mnemonics: input volume surface fish sight belt winner make october remember earth army broom suffer talent history west crowd basic world put fossil occur cook
 
 Scheme created, seed generated.
 ```
@@ -70,11 +69,11 @@ Scheme created, seed not generated.
 ### Add a mnemonic.
 
 ```bash
-$ ./app add-mnemonic seedtest1 0 "fork clerk hover mystery replace crucial industry deliver rule into broom brave derive slam limit market alarm weird worth reform idle indoor ozone must"
+$ ./app add-mnemonic seedtest1 0 "fork clerk hover mystery replace crucial industry deliver rule into broom brave derive slam limit market alarm weird worth reform idle indoor ozone must" 77kU3P3PSdNc
 Key added.
 ```
 
-The command is `add-mnemonic <seed_name> <index> <mnemonic>`.
+The command is `add-mnemonic <seed_name> <index> <mnemonic> <password>`.
 
 The `seed_name` is the seed identifier.
 
@@ -82,27 +81,16 @@ The `index` parameter is the index of that key in the scheme.
 
 The `mnemonic` is the mnemonic.
 
+The `password` is the password used to encrypt the key share.
+
 If the user adds a new key and then the total number of keys for this seed reaches the threshold, a secret will be automatically generated.
 
 ```bash
-$ ./app add-mnemonic seedtest1 1 "volcano share general tonight artefact injury alcohol unveil asset grain flee nut piece parrot vital improve property desk pact three dog vehicle purity turn"
+$ ./app add-mnemonic seedtest1 1 "volcano share general tonight artefact injury alcohol unveil asset grain flee nut piece parrot vital improve property desk pact three dog vehicle purity turn" JkWDepdT5sga
 There are already enough keys to calculate the seed.
 Seed:
 6141fc5eb49c3e0d47fb7d63aefe1a86e1d61104b50df4b8b705548a10c89505
 ```
-
-### Add a key (hexadecimal).
-
-Instead of adding a mnemonic, the user can add a key directly.
-
-```bash
-$ ./app add-key seedtest2 1 f5b8a5837240cee84187730dacb1634bda4740fd4390ac677e7af08409e3eb97
-Key added.
-```
-
-The command is `add-key <seed_name> <index> <key>`.
-
-The parameters are the same as `add-mnemonic` except for `<key>`, which is a key share represented in hexadecimal.
 
 ## Running from docker 
 
@@ -121,9 +109,7 @@ $ docker compose run sss-sgx create-new-scheme seedtest1 2 3 -g
 
 $ docker compose run sss-sgx create-new-scheme seedtest2 2 3
 
-$ docker compose run sss-sgx add-mnemonic seedtest2 0 "fork clerk hover mystery replace crucial industry deliver rule into broom brave derive slam limit market alarm weird worth reform idle indoor ozone must"
-
-$ docker compose run sss-sgx add-key seedtest2 1 f5b8a5837240cee84187730dacb1634bda4740fd4390ac677e7af08409e3eb97
+$ docker compose run sss-sgx add-mnemonic seedtest2 0 "fork clerk hover mystery replace crucial industry deliver rule into broom brave derive slam limit market alarm weird worth reform idle indoor ozone must" 77kU3P3PSdNc
 ```
 
 To stop the container and remove the volume.
