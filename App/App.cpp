@@ -290,65 +290,6 @@ bool validate_seed(sgx_enclave_id_t &enclave_id, std::string& seed_name, db_mana
     return true;
 }
 
-// This function assumes enclave_id is locked
-void add_key(
-    sgx_enclave_id_t &enclave_id,
-    std::string& seed_name,
-    size_t key_share_index,
-    uint8_t* secret,
-    size_t secret_len,
-    db_manager::Scheme& scheme) {
-
-    size_t sealed_key_share_size = utils::sgx_calc_sealed_data_size(0U, (uint32_t) secret_len);
-    char sealed_key_share[sealed_key_share_size];
-
-    sgx_status_t ecall_ret;
-    sgx_status_t status = seal_key_share(
-        enclave_id, &ecall_ret, 
-        secret, secret_len,
-        sealed_key_share, sealed_key_share_size);
-
-    if (ecall_ret != SGX_SUCCESS) {
-        std::cout << "Key share seal Ecall failed " << std::endl;
-        return;
-    }  if (status != SGX_SUCCESS) {
-        std::cout << "Key share seal failed " << std::endl;
-        return;
-    }
-
-    std::string error_message;
-    bool res = db_manager::add_sealed_key_share(seed_name, sealed_key_share, sealed_key_share_size, key_share_index, error_message);
-
-    if (!res) {
-        std::cout << "Database error: " << error_message << std::endl;
-        return;
-    }
-
-    std::vector<db_manager::KeyShare>  key_shares = db_manager::get_key_shares(scheme, error_message);
-
-    if (key_shares.size() >= scheme.threshold) {
-        std::cout << "There are already enough keys to calculate the seed." << std::endl;
-        recover_seed(enclave_id, key_shares, scheme, true);
-    } else {
-        std::cout << "Key added." << std::endl;
-    }
-
-}
-
-char* data_to_hex(uint8_t* in, size_t insz)
-{
-  char* out = (char*) malloc(insz * 2 + 1);
-  uint8_t* pin = in;
-  const char * hex = "0123456789abcdef";
-  char* pout = out;
-  for(; pin < in + insz; pout += 2, pin++){
-    pout[0] = hex[(*pin>>4) & 0xF];
-    pout[1] = hex[ *pin     & 0xF];
-  }
-  pout[0] = 0;
-  return out;
-}
-
 void add_mnemonic(
     sgx_enclave_id_t &enclave_id,
     std::mutex &mutex_enclave_id,
@@ -412,26 +353,6 @@ void add_mnemonic(
     }
 }
 
-void add_key(
-    sgx_enclave_id_t &enclave_id,
-    std::mutex &mutex_enclave_id,
-    std::string& seed_name,
-    size_t key_share_index,
-    std::string& new_key) {
-
-    const std::lock_guard<std::mutex> lock(mutex_enclave_id);
-
-    db_manager::Scheme scheme;
-    if (!validate_seed(enclave_id, seed_name, scheme)) {
-        return;
-    }
-
-    uint8_t* secret;
-    size_t secret_len = hex_to_data(new_key.c_str(), &secret);
-
-    add_key(enclave_id, seed_name, key_share_index, secret, secret_len, scheme);
-}
-
 int SGX_CDECL main(int argc, char *argv[])
 {
     sgx_enclave_id_t enclave_id = 0;
@@ -450,7 +371,6 @@ int SGX_CDECL main(int argc, char *argv[])
 
     CLI::App app{"Shamir's Secret Sharing Scheme on Intel SGX"};
 
-    CLI::App* add_key_cmd = app.add_subcommand("add-key", "Adds a key");
     CLI::App* create_new_scheme_cmd = app.add_subcommand("create-new-scheme", "Create a new scheme. Optionally generate a new secret.");
     CLI::App* add_mnemonic_cmd = app.add_subcommand("add-mnemonic", "Generate a mnemonic");
 
@@ -458,7 +378,6 @@ int SGX_CDECL main(int argc, char *argv[])
     size_t threshold;
     size_t shareCount;
     bool generate_seed = false;
-    // Options for the "add-key" subcommand
     create_new_scheme_cmd->add_option("name", seedName, "The name of the seed")->required();
     create_new_scheme_cmd->add_option("threshold", threshold, "The threshold for this seed")->required();
     create_new_scheme_cmd->add_option("share-count", shareCount, "The total number of shares for this seed")->required();
@@ -472,16 +391,9 @@ int SGX_CDECL main(int argc, char *argv[])
     add_mnemonic_cmd->add_option("mnemonic", mnemonic, "The mnemonic to add")->required();
     add_mnemonic_cmd->add_option("password", password, "Password for additional security")->required();
 
-    std::string new_key;
-    add_key_cmd->add_option("name", seedName, "The name of the seed")->required();
-    add_key_cmd->add_option("key_share_index", key_share_index, "The index of this key in the Shamir secret scheme")->required();
-    add_key_cmd->add_option("key", new_key, "The key to add")->required();
-
     CLI11_PARSE(app, argc, argv);
 
-    if(*add_key_cmd) {
-        add_key(enclave_id, mutex_enclave_id, seedName, key_share_index, new_key);
-    } else if(*create_new_scheme_cmd) {
+    if(*create_new_scheme_cmd) {
         create_new_scheme(enclave_id, mutex_enclave_id, seedName, threshold, shareCount, generate_seed);
     } else if(*add_mnemonic_cmd) {
         add_mnemonic(enclave_id, mutex_enclave_id, seedName, key_share_index, mnemonic, password);

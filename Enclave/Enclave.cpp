@@ -78,10 +78,10 @@ sgx_status_t apply_password(const unsigned char *share_data, unsigned char *xor_
     return ret;
   }
 
-  char* password_hex = data_to_hex(password, password_size);
-  ocall_print_string("password_hex:");
-  ocall_print_string(password_hex);  
-  ocall_print_string("\n");
+  // char* password_hex = data_to_hex(password, password_size);
+  // ocall_print_string("password_hex:");
+  // ocall_print_string(password_hex);  
+  // ocall_print_string("\n");
 
   // Define the output hash array and size
   uint8_t hash_password[size];  // Output size for 256-bit hash
@@ -139,10 +139,10 @@ sgx_status_t generate_new_secret(
 
     sgx_read_rand(secret, secret_len);
 
-    ocall_print_string("\nSeed: ");
-    char* seed = data_to_hex(secret, secret_len);
-    ocall_print_string(seed);
-    ocall_print_string("\n");
+    // ocall_print_string("\nSeed: ");
+    // char* seed = data_to_hex(secret, secret_len);
+    // ocall_print_string(seed);
+    // ocall_print_string("\n");
 
     size_t result_len = share_count * secret_len;
     uint8_t result_data[result_len];
@@ -157,9 +157,9 @@ sgx_status_t generate_new_secret(
 
         // ocall_print_hex(&r_data, (int *) &secret_len);
         char* key_share_hex = data_to_hex(result_data + offset, secret_len);
-        ocall_print_string("Key : ");
-        ocall_print_string(key_share_hex);
-        ocall_print_string("\n");
+        // ocall_print_string("Key : ");
+        // ocall_print_string(key_share_hex);
+        // ocall_print_string("\n");
         // ocall_print_bip39(key_share_hex);
         // ocall_print_string("");
 

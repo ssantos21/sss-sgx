@@ -10,7 +10,7 @@ enclave {
             [out, size=sealed_total_share_size] char* sealed_shares, size_t sealed_total_share_size
         );
 
-        public sgx_status_t seal_key_share(
+        sgx_status_t seal_key_share(
             [in, size=key_share_size] unsigned char* key_share, size_t key_share_size,
             [out, size=sealed_key_share_size] char* sealed_key_share, size_t sealed_key_share_size
         );
