@@ -105,11 +105,11 @@ $ docker compose --file Dockerfiles/SIM/docker-compose.yml up
 Now the same commands above can be used.
 
 ```bash
-$ docker compose run sss-sgx create-new-scheme seedtest1 2 3 -g
+$ docker compose --file Dockerfiles/SIM/docker-compose.yml run sss-sgx create-new-scheme seedtest1 2 3 -g
 
-$ docker compose run sss-sgx create-new-scheme seedtest2 2 3
+$ docker compose --file Dockerfiles/SIM/docker-compose.yml run sss-sgx create-new-scheme seedtest2 2 3
 
-$ docker compose run sss-sgx add-mnemonic seedtest2 0 "fork clerk hover mystery replace crucial industry deliver rule into broom brave derive slam limit market alarm weird worth reform idle indoor ozone must" 77kU3P3PSdNc
+$ docker compose --file Dockerfiles/SIM/docker-compose.yml run sss-sgx add-mnemonic seedtest2 0 "fork clerk hover mystery replace crucial industry deliver rule into broom brave derive slam limit market alarm weird worth reform idle indoor ozone must" 77kU3P3PSdNc
 ```
 
 To stop the container and remove the volume.
@@ -126,6 +126,6 @@ $ ./build_compose_run.sh
 ```
 
 ```bash
-$ docker compose run sample create-new-scheme seedtest1 2 3 -g
+$ docker compose --file Dockerfiles/HW/docker-compose.yml run sample create-new-scheme seedtest1 2 3 -g
 ```
 
